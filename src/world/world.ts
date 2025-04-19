@@ -22,7 +22,7 @@ import { Resizer } from './systems/Resizer.js'
 import { Loop } from './systems/Loop.js'
 
 // Types
-import { Helpers } from '../types.js'
+import { AppMaterials, GuiControlOptions, Helpers } from '../types.js'
 
 // Class members
 class World {
@@ -32,7 +32,7 @@ class World {
     private loop: Loop
     private controls: OrbitControls
     private gui?: GUI
-    private floorMesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>
+    private floorMesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial> // Defined as a class member in order to easily have access to the material in the debug method
     private resizer: Resizer
     private helpers: Helpers[]
 
@@ -106,7 +106,7 @@ class World {
         /* 
          * Debug
         */
-        if (config.debug) {
+        if (config.debug.enabled) {
             this.gui = new GUI()
             this.setupDebugGUI()
         }
@@ -124,61 +124,123 @@ class World {
         this.loop.stop()
     }
 
-    // Debug GUI setup method
-    private setupDebugGUI(): void {
-        if (!this.gui) return
-        /* 
-        * Setup Helpers
-        */
-        // --- Axes Helper ---
-        const axesHelper = new THREE.AxesHelper(5)
-        axesHelper.name = 'Axes Helper'
-        axesHelper.position.set(0, 4, 0)
-        this.helpers.push(axesHelper)
+    /**
+     * Helper to add controls to a specific GUI folder or the root GUI.
+     * @param target The object containing the property to control.
+     * @param propName The name of the property (key) on the target object.
+     * @param options Optional configuration for the control (min, max, step, name, onChange).
+     * @param folder The lil-gui folder to add the control to (defaults to the root gui).
+     */
+    private addGuiControl(
+        target: any,
+        propName: string,
+        options: GuiControlOptions = {},
+        folder?: GUI
+    ): void {
+        const guiInstance = folder ?? this.gui // Folder or 'root' gui
+        if (!guiInstance) return
 
-        // --- Roof Debug ---
+        const { min, max, step, name, onChange } = options
+        const controlName = name ?? propName
+
+        const controller = guiInstance.add(target, propName)
+
+        if (min !== undefined) controller.min(min)
+        if (max !== undefined) controller.max(max)
+        if (step !== undefined) controller.step(step)
+
+        controller.name(controlName)
+
+        if (onChange) {
+            controller.onChange(onChange)
+        }
+    }
+
+
+    private setupDebugGUI(): void {
+        if (!this.gui) return;
+
+        /*
+         * Helper Definitions
+         */
+        const createVertexNormalsHelper = (object: THREE.Object3D, name?: string, size?: number, hex?: number) => {
+            const helper = new VertexNormalsHelper(object, size ?? 0.2, hex ?? 0xff0000)
+            helper.name = name ?? helper.type
+            helper.visible = false
+            this.helpers.push(helper)
+
+            return helper
+        }
+
+        const createAxesHelper = (size?: number) => {
+            const axesHelper = new THREE.AxesHelper(size ?? 5)
+            axesHelper.name = 'Axes Helper'
+            axesHelper.position.set(0, 4, 0)
+            axesHelper.visible = false
+            this.helpers.push(axesHelper)
+
+            return axesHelper
+        }
+
+        /*
+         * Setup Object Specific Debug & Helpers
+         */
         const roof = this.scene.getObjectByName('roof')
         if (roof) {
-            const roofNormalsHelper = new VertexNormalsHelper(roof, 0.2, 0xff0000)
-            this.scene.add(roofNormalsHelper)
-            this.gui
-                .add(roofNormalsHelper, 'visible')
-                .name('Show Roof Normal Direction')
+            createVertexNormalsHelper(roof, 'Show Roof Normals')
         }
-        // --- House Debug ---
+
         const customHouse = this.scene.getObjectByName('customHouse')
         if (customHouse) {
-            const houseNormalsHelper = new VertexNormalsHelper(customHouse, 0.2, 0xff0000)
-            this.scene.add(houseNormalsHelper)
-            this.gui
-                .add(houseNormalsHelper, 'visible')
-                .name('Show House Normal Direction')
+            createVertexNormalsHelper(customHouse, 'Show House Normals')
         }
 
-        // --- Floor/Ground Debug ---
-        const floorMaterial = this.floorMesh?.material
+        const floorMaterial = this.floorMesh?.material as AppMaterials['standard']
         if (floorMaterial) {
-            this.gui
-                .add(floorMaterial, 'displacementScale')
-                .min(0)
-                .max((config.floor.material.displacementScale ?? 1) * 2)
-                .step(0.001)
-                .name('floorDisplacementScale')
-            this.gui
-                .add(floorMaterial, 'displacementBias')
-                .min(-1)
-                .max(1)
-                .step(0.001)
-                .name('floorDisplacementBias')
+            const floorFolder = this.gui.addFolder('Floor Material')
+            // floorFolder.close()
+
+            this.addGuiControl(floorMaterial, 'displacementScale', {
+                min: 0,
+                max: (config.debug.floor.material.displacementScale ?? 1) * 2,
+                step: 0.001,
+                name: 'Displacement Scale'
+            }, floorFolder)
+
+            this.addGuiControl(floorMaterial, 'displacementBias', {
+                min: -1,
+                max: 1,
+                step: 0.001,
+                name: 'Displacement Bias'
+            }, floorFolder)
         }
 
-        // --- Helpers Debug ---
+        /* 
+         * Setup Other Helpers
+        */
+        const axesHelperInstance = createAxesHelper()
+        // Debug: Controlling AxesHelper position
+        if (axesHelperInstance) {
+            const axesFolder = this.gui.addFolder('Axes Helper Position')
+            this.addGuiControl(axesHelperInstance.position, 'x', { min: -10, max: 10, step: 0.1, name: 'Horizontal (x)' }, axesFolder)
+            this.addGuiControl(axesHelperInstance.position, 'y', { min: 0, max: 10, step: 0.1, name: 'Vertical (y)' }, axesFolder)
+            this.addGuiControl(axesHelperInstance.position, 'z', { min: -10, max: 10, step: 0.1, name: 'Horizontal (z)' }, axesFolder)
+        }
+
+        /* 
+         * Adding the Helpers to the GUI
+        */
         if (this.helpers.length) {
+            const helpersFolder = this.gui.addFolder('Scene Helpers')
+            // helpersFolder.close()
+
             this.helpers.forEach(helper => {
                 this.scene.add(helper)
-                this.gui!
-                    .add(helper, 'visible')
-                    .name(helper.name || helper.type)
+
+                // helper for the 'visible' property (boolean checkbox)
+                this.addGuiControl(helper, 'visible', {
+                    name: helper.name || helper.type
+                }, helpersFolder)
             })
         }
     }

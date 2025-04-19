@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import type { VertexNormalsHelper } from 'three/examples/jsm/Addons.js';
 
 export interface TextureConfig {
     path: string
@@ -149,8 +150,17 @@ export interface ShadowConfig {
     mapSize?: number
 }
 
+export interface DebugConfig {
+    enabled: boolean
+    floor: {
+        material: {
+            displacementScale: number
+        }
+    }
+}
+
 export interface AppConfig {
-    debug: boolean
+    debug: DebugConfig
     backgroundColor: THREE.ColorRepresentation
     house: HouseConfig
     roof: RoofConfig
@@ -177,9 +187,23 @@ export interface SharedGeometries {
     logGeometry: THREE.CylinderGeometry
 }
 
+export interface GuiControlOptions {
+    min?: number
+    max?: number
+    step?: number
+    name?: string
+    onChange?: (value: any) => void
+}
+
+export interface AppMaterials {
+    standard: THREE.MeshStandardMaterial
+    physical: THREE.MeshPhysicalMaterial
+}
+
 export type Helpers =
-THREE.SpotLightHelper |
-THREE.PointLightHelper |
-THREE.HemisphereLightHelper |
-THREE.DirectionalLightHelper |
-THREE.AxesHelper
+    THREE.SpotLightHelper |
+    THREE.PointLightHelper |
+    THREE.HemisphereLightHelper |
+    THREE.DirectionalLightHelper |
+    THREE.AxesHelper |
+    VertexNormalsHelper

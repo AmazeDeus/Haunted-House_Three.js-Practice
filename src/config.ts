@@ -2,9 +2,17 @@ import * as THREE from 'three'
 import { texturePaths } from './lib/textures.js'
 import { AppConfig, SharedGeometries } from './types.js'
 
-// Centralized measurements, colors, counts, etc.
+// Centralized debug, measurements, colors, counts, etc.
 export const config: AppConfig = {
-    debug: true, // Enable/disable lil-gui
+    // --- Debug ---
+    debug: {
+        enabled: true, // Enable/disable lil-gui
+        floor: {
+            material: {
+                displacementScale: 0.5
+            }
+        }
+    },
 
     // --- Scene settings ---
     backgroundColor: '#000000',
@@ -318,7 +326,7 @@ export const config: AppConfig = {
     shadows: {
         enabled: true,
         mapSize: 256
-    }
+    },
 }
 
 // Shared Geometries
